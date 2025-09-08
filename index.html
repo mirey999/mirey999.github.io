@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Калькулятор буста PFB</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --violet-1:#0b0014;
+      --violet-2:#140029;
+      --violet-3:#2a0052;
+      --violet-4:#5a1aff;
+      --violet-5:#a66bff;
+      --accent:#c04dff;
+      --accent-2:#6f7dff;
+      --ok:#47d16a;
+      --danger:#ff5470;
+      --text:#e9e6f0;
+      --muted:#bdb7c9;
+      --glass-bg: rgba(255,255,255,0.08);
+      --glass-stroke: rgba(255,255,255,0.22);
+      --glass-blur: 16px;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+      --glow: 0 0 18px rgba(192,77,255,0.35), 0 0 42px rgba(111,125,255,0.25);
+      --speed: .25s;
+      --speed-slow: .45s;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,Arial,Helvetica,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% -5%, rgba(111,125,255,0.18), transparent 60%),
+        radial-gradient(1000px 900px at 85% 10%, rgba(192,77,255,0.22), transparent 60%),
+        linear-gradient(180deg, var(--violet-2), var(--violet-1) 40%, var(--violet-3));
+      overflow-x:hidden;
+    }
+
+    /* Floating orbs for depth */
+    .orb{
+      position:fixed;
+      border-radius:50%;
+      filter:blur(48px);
+      opacity:0.45;
+      pointer-events:none;
+      mix-blend-mode:screen;
+      animation:float var(--speed-slow) ease-in-out infinite alternate;
+    }
+    .orb.one{width:300px;height:300px;left:-80px;top:-40px;background:radial-gradient(circle at 30% 30%, #8f71ff, transparent);}
+    .orb.two{width:260px;height:260px;right:120px;top:120px;background:radial-gradient(circle at 50% 50%, #c04dff, transparent);animation-duration:6s}
+    .orb.three{width:220px;height:220px;left:50%;bottom:-60px;transform:translateX(-50%);background:radial-gradient(circle at 50% 50%, #6f7dff, transparent);animation-duration:7.5s}
+    @keyframes float{
+      from{transform:translateY(0)}
+      to{transform:translateY(-10px)}
+    }
+
+    header{
+      padding:48px 24px 8px;
+      text-align:center;
+    }
+    h1{
+      margin:0;
+      font-weight:800;
+      letter-spacing:.3px;
+      font-size:34px;
+      text-shadow:var(--glow);
+    }
+    .subtitle{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:15px;
+    }
+
+    .container{
+      max-width:1180px;
+      margin:28px auto 80px;
+      padding:0 16px;
+      display:grid;
+      grid-template-columns: 2fr 1fr;
+      gap:18px;
+    }
+    @media (max-width: 980px){
+      .container{grid-template-columns: 1fr}
+    }
+
+    .card{
+      background:var(--glass-bg);
+      border:1px solid var(--glass-stroke);
+      border-radius:var(--radius);
+      backdrop-filter: blur(var(--glass-blur));
+      box-shadow:var(--shadow);
+      padding:18px;
+      position:relative;
+      overflow:hidden;
+    }
+    .card::after{
+      content:"";
+      position:absolute;inset:-1px;
+      border-radius:inherit;
+      pointer-events:none;
+      background:linear-gradient(180deg, rgba(255,255,255,0.10), transparent 40%);
+      mask:linear-gradient(180deg, #000, transparent 50%);
+    }
+    .card h2{
+      margin:2px 0 14px;
+      font-size:20px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(2,1fr);
+      gap:12px;
+    }
+    @media (max-width:640px){ .grid{grid-template-columns: 1fr} }
+
+    label{
+      display:block;
+      font-size:13px;
+      color:var(--muted);
+      margin-bottom:8px;
+    }
+    .field{
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.18);
+      border-radius:14px;
+      padding:12px 14px;
+      color:var(--text);
+      outline:none;
+      width:100%;
+      transition:border-color var(--speed), transform var(--speed);
+    }
+    .field:focus{
+      border-color:var(--accent);
+      transform:translateY(-1px);
+      box-shadow:0 0 0 4px rgba(192,77,255,0.18);
+    }
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+    /* Toggle fancy */
+    .toggle{
+      display:flex;align-items:center;gap:10px
+    }
+    .toggle .label{
+      font-size:14px;color:var(--muted)
+    }
+    .switch{
+      position:relative;width:98px;height:36px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+      border:1px solid rgba(255,255,255,0.18);
+      border-radius:24px;cursor:pointer;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 8px;
+      backdrop-filter:blur(10px);
+      user-select:none;
+      transition:box-shadow var(--speed);
+    }
+    .switch:hover{box-shadow:var(--glow)}
+    .switch span{
+      font-size:12px;color:var(--muted);z-index:2;
+      width:50%;text-align:center
+    }
+    .knob{
+      position:absolute;top:3px;bottom:3px;
+      width:48px;border-radius:20px;
+      background:radial-gradient(circle at 30% 20%, rgba(255,255,255,0.8), rgba(255,255,255,0.1));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.35), 0 6px 16px rgba(0,0,0,0.35), 0 0 10px rgba(192,77,255,0.45);
+      transform:translateX(-5px);
+      transition:transform var(--speed-slow) cubic-bezier(.2,.8,.2,1);
+    }
+    .switch.on .knob{ transform:translateX(37px) }
+    .switch .active{ color:#fff; text-shadow:0 0 8px rgba(255,255,255,0.55) }
+
+    /* Slider DD */
+    .dd-wrap{
+      display:flex;align-items:center;gap:14px
+    }
+    .dd-slider{ -webkit-appearance:none; width:160px; height:8px; border-radius:10px;
+      background:linear-gradient(90deg, rgba(255,255,255,0.25), rgba(192,77,255,0.65));
+      outline:none; transition:filter var(--speed)
+    }
+    .dd-slider:hover{ filter:brightness(1.1) }
+    .dd-slider::-webkit-slider-thumb{
+      -webkit-appearance:none; width:24px;height:24px;border-radius:50%;
+      background:radial-gradient(circle at 30% 30%, #fff, #c9b9ff);
+      border:1px solid rgba(255,255,255,0.7);
+      box-shadow:0 4px 12px rgba(0,0,0,0.35), 0 0 16px rgba(192,77,255,0.55);
+      cursor:pointer;
+    }
+    .badge{
+      padding:6px 10px; border-radius:999px; font-size:12px;
+      background:rgba(192,77,255,0.16); border:1px solid rgba(192,77,255,0.4);
+      color:#fff; box-shadow:var(--glow)
+    }
+
+    /* Buttons */
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      border:none;cursor:pointer;
+      padding:12px 16px; border-radius:14px; font-weight:700; letter-spacing:.2px;
+      color:#101018;
+      background:linear-gradient(180deg, #fff, #d9c7ff);
+      box-shadow: 0 10px 24px rgba(192,77,255,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+      transition: transform var(--speed), box-shadow var(--speed);
+    }
+    .btn:hover{ transform:translateY(-1px); box-shadow:0 16px 36px rgba(192,77,255,0.35), inset 0 1px 0 rgba(255,255,255,0.7) }
+    .btn:active{ transform:translateY(0) scale(.99) }
+
+    .btn-ghost{
+      background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.25)
+    }
+    .btn-ghost:hover{ box-shadow:var(--glow) }
+
+    .result{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:12px 14px;margin-top:10px;
+      border-radius:14px;border:1px dashed rgba(255,255,255,0.25);
+      background:rgba(255,255,255,0.04)
+    }
+    .result .sum{ font-size:24px; font-weight:800; letter-spacing:.4px }
+    .hint{ font-size:12px; color:var(--muted) }
+
+    /* Tabs for extra services */
+    .tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px }
+    .tab{
+      padding:8px 12px; border-radius:12px;
+      border:1px solid rgba(255,255,255,0.2);
+      background:rgba(255,255,255,0.05);
+      color:#fff; cursor:pointer; font-size:13px; transition:all var(--speed)
+    }
+    .tab.active{ border-color:rgba(192,77,255,0.6); background:rgba(192,77,255,0.15); box-shadow:var(--glow) }
+    .tab-content{ display:none; }
+    .tab-content.active{ display:block; animation:fade .35s ease }
+    @keyframes fade{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
+
+    .note{
+      font-size:12px; color:var(--muted); margin-top:8px
+    }
+
+    /* Price editor panel */
+    .editor{
+      display:grid; gap:10px; grid-template-columns:1fr;
+      max-height:480px; overflow:auto; padding-right:4px
+    }
+    .edit-row{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px;
+    }
+    .tiny{ font-size:12px; color:var(--muted) }
+    .ok{ color:var(--ok) } .warn{ color:var(--danger) }
+  </style>
+</head>
+<body>
+  <div class="orb one"></div>
+  <div class="orb two"></div>
+  <div class="orb three"></div>
+
+  <header>
+    <h1>Калькулятор буста PFB</h1>
+    <div class="subtitle">Люблю вас пэфэбешеры <3 .</div>
+  </header>
+
+  <main class="container">
+    <!-- Main calculator -->
+    <section class="card">
+      <h2>Калькулятор буста MMR</h2>
+
+      <div class="row" style="margin-bottom:12px">
+        <div class="toggle" id="boostTypeToggle">
+          <span class="label">Тип буста</span>
+          <div class="switch" role="switch" aria-checked="false" tabindex="0">
+            <span class="opt solo active">Соло</span>
+            <span class="opt party">Пати</span>
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div class="toggle" id="calcModeToggle">
+          <span class="label">Режим</span>
+          <div class="switch" role="switch" aria-checked="false" tabindex="0">
+            <span class="opt mmr active">MMR</span>
+            <span class="opt wins">WIN</span>
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div class="toggle" id="ddToggle" title="Клиенты с даблами после 5620 MMR: +30% (только для Соло буста)">
+          <span class="label">ДД</span>
+          <div class="switch" role="switch" aria-checked="false" tabindex="0">
+            <span class="opt off active">-</span>
+            <span class="opt on">+</span>
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <label style="margin:0">
+          <input type="checkbox" id="smurfPool" />
+          Смурф-пулл
+        </label>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label>Изначальный MMR</label>
+          <input class="field" type="number" id="mmrFrom" placeholder="например, 3210" min="1" max="11000" />
+        </div>
+        <div>
+          <label>Конечный MMR</label>
+          <input class="field" type="number" id="mmrTo" placeholder="например, 4500" min="1" max="11000" />
+        </div>
+      </div>
+
+      <div id="winsBlock" style="display:none; margin-top:10px">
+        <label>Количество побед</label>
+        <input class="field" type="number" id="winsCount" placeholder="например, 10" min="1" max="500" />
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="calcBtn">Рассчитать цену</button>
+        <button class="btn btn-ghost" id="resetBtn">Сброс</button>
+        <span class="hint">Суммирование по тарифным диапазонам. Для ДД: +30% на часть заказа выше 5620 MMR (только соло).</span>
+      </div>
+
+      <div class="result" style="margin-top:14px">
+        <div>
+          <div class="tiny">Итоговая стоимость</div>
+          <div class="sum" id="totalPrice">— ₽</div>
+        </div>
+        <div>
+          <div class="tiny">Детализация</div>
+          <div class="hint" id="breakdown">Введите данные и нажмите “Рассчитать”.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Side tools -->
+    <aside class="card">
+      <h2>Настройки и доп. услуги</h2>
+
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="editor">Настройка цен</div>
+        <div class="tab" data-tab="party">Пати буст (за вин)</div>
+        <div class="tab" data-tab="calibration">Калибровка</div>
+        <div class="tab" data-tab="coaching">Коучинг</div>
+        <div class="tab" data-tab="battle">Боевой кубок</div>
+        <div class="tab" data-tab="conduct">Порядочность</div>
+        <div class="tab" data-tab="hours">100 часов</div>
+      </div>
+
+      <!-- Editor -->
+      <div class="tab-content active" id="editor">
+        <div class="note">Меняй прайсы — калькулятор сразу возьмет новые значения.</div>
+        <div class="editor" id="editorRows"></div>
+      </div>
+
+      <!-- Party -->
+      <div class="tab-content" id="party">
+        <div class="grid">
+          <div>
+            <label>Текущий MMR (для определения тарифа)</label>
+            <input class="field" type="number" id="partyMmr" placeholder="например, 4200" min="10" max="11000"/>
+          </div>
+          <div>
+            <label>Количество вин (побед)</label>
+            <input class="field" type="number" id="partyWins" placeholder="например, 10" min="1" max="200"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="partyCalc">Рассчитать</button>
+        </div>
+        <div class="result" style="margin-top:14px">
+          <div>
+            <div class="tiny">Стоимость Пати буста</div>
+            <div class="sum" id="partyTotal">— ₽</div>
+          </div>
+          <div class="hint" id="partyHint">Цена за вин по тарифу × кол-во побед.</div>
+        </div>
+      </div>
+
+      <!-- Calibration -->
+      <div class="tab-content" id="calibration">
+        <div class="grid">
+          <div>
+            <label>Диапазон MMR аккаунта</label>
+            <input class="field" type="number" id="calibMmr" placeholder="например, 3500" min="0" max="11000"/>
+          </div>
+          <div>
+            <label>Побед в калибровке</label>
+            <input class="field" type="number" id="calibWins" placeholder="например, 10" min="1" max="10"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="calibCalc">Рассчитать</button>
+        </div>
+        <div class="result" style="margin-top:14px">
+          <div>
+            <div class="tiny">Стоимость калибровки</div>
+            <div class="sum" id="calibTotal">— ₽</div>
+          </div>
+          <div class="hint" id="calibHint">Цена за вин в диапазоне × кол-во побед.</div>
+        </div>
+      </div>
+
+      <!-- Coaching -->
+      <div class="tab-content" id="coaching">
+        <div class="grid">
+          <div>
+            <label>Текущий MMR клиента</label>
+            <input class="field" type="number" id="coachMmr" placeholder="например, 5200" min="0" max="11000"/>
+          </div>
+          <div>
+            <label>Часы коучинга</label>
+            <input class="field" type="number" id="coachHours" placeholder="например, 3" min="1" max="100"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="coachCalc">Рассчитать</button>
+        </div>
+        <div class="result" style="margin-top:14px">
+          <div>
+            <div class="tiny">Стоимость коучинга</div>
+            <div class="sum" id="coachTotal">— ₽</div>
+          </div>
+          <div class="hint" id="coachHint">Ставка по диапазону × часы.</div>
+        </div>
+      </div>
+
+      <!-- Battle Cup -->
+      <div class="tab-content" id="battle">
+        <div class="grid">
+          <div>
+            <label>Тир боевого кубка</label>
+            <select class="field" id="battleTier">
+              <option value="3">3 тир</option>
+              <option value="4">4 тир</option>
+              <option value="5">5 тир</option>
+              <option value="6">6 тир</option>
+              <option value="7">7 тир</option>
+              <option value="8">8 тир</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="btn" id="battleCalc" style="width:100%">Рассчитать</button>
+          </div>
+        </div>
+        <div class="result" style="margin-top:14px">
+          <div>
+            <div class="tiny">Стоимость боевого кубка</div>
+            <div class="sum" id="battleTotal">— ₽</div>
+          </div>
+          <div class="hint">Фиксированная цена по выбранному тиру.</div>
+        </div>
+      </div>
+
+      <!-- Conduct / Low Priority -->
+      <div class="tab-content" id="conduct">
+        <div class="grid">
+          <div>
+            <label>Текущая порядочность</label>
+            <input class="field" type="number" id="condFrom" placeholder="например, 4000" min="0" max="11000"/>
+          </div>
+          <div>
+            <label>Желаемая порядочность</label>
+            <input class="field" type="number" id="condTo" placeholder="например, 9000" min="0" max="11000"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label style="margin:0">
+            <input type="checkbox" id="condAccHigh" />
+            Аккаунт для отмыва 7500+ MMR (+30%)
+          </label>
+          <button class="btn" id="condCalc">Рассчитать</button>
+        </div>
+        <div class="result" style="margin-top:14px">
+          <div>
+            <div class="tiny">Стоимость повышения порядочности</div>
+            <div class="sum" id="condTotal">— ₽</div>
+          </div>
+          <div class="hint" id="condHint">Цена за каждые 1000 пунктов по диапазону. Применяется помесячно по сегментам.</div>
+        </div>
+      </div>
+
+      <!-- 100 hours -->
+      <div class="tab-content" id="hours">
+        <div class="row">
+          <div class="toggle" id="hoursToggle">
+            <span class="label">Опт/Розница</span>
+            <div class="switch" role="switch" aria-checked="false" tabindex="0">
+              <span class="opt retail active">Розница</span>
+              <span class="opt bulk">Опт</span>
+              <div class="knob"></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid" style="margin-top:10px">
+          <div>
+            <label>Часы</label>
+            <input class="field" type="number" id="hoursCount" placeholder="например, 100" min="1" max="500"/>
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="btn" id="hoursCalc" style="width:100%">Рассчитать</button>
+          </div>
+        </div>
+        <div class="result" style="margin-top:14px">
+          <div>
+            <div class="tiny">Стоимость часов</div>
+            <div class="sum" id="hoursTotal">— ₽</div>
+          </div>
+          <div class="hint" id="hoursHint">Опт: 5000 ₽ за 100ч. Розница: 60 ₽/ч.</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // ==========================
+    // Конфиг цен (редактируй тут)
+    // ==========================
+    const pricesConfig = {
+      mmrSoloRubPer100: [
+        {from:   1, to: 2000,   rate:125},
+        {from:2000, to: 3000,   rate:150},
+        {from:3000, to: 3500,   rate:185},
+        {from:3500, to: 4000,   rate:250},
+        {from:4000, to: 4500,   rate:300},
+        {from:4500, to: 5000,   rate:330},
+        {from:5000, to: 5500,   rate:400},
+        {from:5500, to: 6500,   rate:500},
+        {from:6500, to: 7500,   rate:600},
+        {from:7500, to: 8500,   rate:650},
+        {from:8500, to: 9000,   rate:900},
+        {from:9000, to: 9500,   rate:1200},
+        {from:9500, to:10000,   rate:1400},
+        {from:10000,to:10500,   rate:1700},
+        {from:10500,to:11000,   rate:2000},
+      ],
+      // ДД настройки
+      ddThreshold: 5620,          // порог для соло сегментов
+      ddMode: 'percent',          // 'percent' | 'fixed'
+      ddValue: 30,                // если percent → %, если fixed → ₽
+
+      // Пати буст (за вин)
+      partyPerWin: [
+        {from:  10, to: 2000, rate: 55},
+        {from:2000, to: 3000, rate: 65},
+        {from:3000, to: 3500, rate: 75},
+        {from:3500, to: 4000, rate: 90},
+        {from:4000, to: 4500, rate:100},
+        {from:4500, to: 5000, rate:135},
+        {from:5000, to: 5500, rate:165},
+        {from:5500, to: 6000, rate:200},
+        {from:6000, to: 6500, rate:300},
+        {from:6500, to: 7000, rate:400},
+        {from:7000, to: 7500, rate:500},
+        {from:7500, to: 8000, rate:700},
+        {from:8000, to: 8500, rate:800},
+        {from:8500, to: 9000, rate:1000},
+        {from:9000, to: 9500, rate:1200},
+        {from:9500, to:10000, rate:1500},
+        {from:10000,to:10500, rate:1800},
+        {from:10500,to:11000, rate:2000},
+      ],
+
+      // Калибровка (за вин, с передачей)
+      calibrationPerWin: [
+        {from:   0, to: 2000,  rate: 55},
+        {from:2000, to: 3000,  rate: 65},
+        {from:3000, to: 4000,  rate: 75},
+        {from:4000, to: 4500,  rate: 90},
+        {from:4500, to: 5000,  rate:100},
+        {from:5000, to: 5500,  rate:135},
+        {from:5500, to: 6000,  rate:165},
+        {from:6000, to: 6500,  rate:200},
+        {from:6500, to: 7000,  rate:250},
+        {from:7000, to: 7500,  rate:300},
+        {from:7500, to: 8000,  rate:350},
+        {from:8000, to: 8500,  rate:400},
+        {from:8500, to: 9000,  rate:500},
+        {from:9000, to: 9500,  rate:650},
+        {from:9500, to:10000,  rate:750},
+        {from:10000,to:10500,  rate:850},
+        {from:10500,to:11000,  rate:1000},
+      ],
+
+      // Коучинг (руб/час)
+      coachingHourly: [
+        {from:   0, to: 5630,  rate: 330},
+        {from:5630, to: 7000,  rate: 500},
+        {from:7000, to:20000,  rate: 700},
+      ],
+
+      // Боевой кубок
+      battleCup: {
+        3:200, 4:250, 5:300, 6:400, 7:500, 8:1000
+      },
+
+      // Порядочность (за 1000)
+      conductPer1000: [
+        // читаем “на промежутке от 9000” как 9000–11000
+        {from: 9000, to:11000, rate:4000},
+        // до 9000 (5000–9000)
+        {from: 5000, to: 9000, rate:3000},
+        // до 5000 (0–5000)
+        {from:    0, to: 5000, rate:2000},
+      ],
+      conductAccHighMultiplier: 1.30, // 7500+ ммр
+      hours: { bulk100: 5000, retailPerHour: 60 },
+
+      // Смурф-пулл надбавка (проценты)
+      smurfPoolPercent: 15
+    };
+
+    // ==============
+    // Утилиты
+    // ==============
+    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+    const fmt = n => n.toLocaleString('ru-RU');
+
+    function getRateFromRanges(ranges, mmr){
+      return ranges.find(r => mmr >= r.from && mmr < r.to)?.rate ?? ranges[ranges.length-1].rate;
+    }
+
+    function segmentSum(from, to, ranges, per=100){
+      if(to<=from) return {sum:0, parts:[]};
+      let sum=0, remainFrom=from, parts=[];
+      for(const r of ranges){
+        const lo=Math.max(remainFrom, r.from);
+        const hi=Math.min(to, r.to);
+        if(hi>lo){
+          const delta=hi-lo;
+          const part = (delta/per)*r.rate;
+          sum += part;
+          parts.push({range:`${r.from}-${r.to}`, delta, rate:r.rate, cost:part});
+        }
+        if(to<=r.to) break;
+      }
+      return {sum, parts};
+    }
+
+    // ==============
+    // Main MMR calc
+    // ==============
+    const mmrFromEl = document.getElementById('mmrFrom');
+    const mmrToEl   = document.getElementById('mmrTo');
+    const calcBtn   = document.getElementById('calcBtn');
+    const resetBtn  = document.getElementById('resetBtn');
+    const totalEl   = document.getElementById('totalPrice');
+    const breakdownEl = document.getElementById('breakdown');
+    const ddToggle  = document.querySelector('#ddToggle .switch');
+    const smurfPoolEl = document.getElementById('smurfPool');
+    const winsBlock = document.getElementById('winsBlock');
+    const winsCountEl = document.getElementById('winsCount');
+
+    // Toggle: Соло/Пати
+    const boostTypeToggle = document.querySelector('#boostTypeToggle .switch');
+    let isParty = false;
+    const setBoostToggleUI = ()=>{
+      boostTypeToggle.classList.toggle('on', isParty);
+      boostTypeToggle.setAttribute('aria-checked', String(isParty));
+      boostTypeToggle.querySelector('.solo').classList.toggle('active', !isParty);
+      boostTypeToggle.querySelector('.party').classList.toggle('active', isParty);
+    };
+    boostTypeToggle.addEventListener('click', ()=>{ isParty=!isParty; setBoostToggleUI(); });
+    boostTypeToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isParty=!isParty; setBoostToggleUI(); }});
+    setBoostToggleUI();
+
+    // DD toggle
+    let isDD = false;
+    const setDDUI = ()=>{
+      ddToggle.classList.toggle('on', isDD);
+      ddToggle.setAttribute('aria-checked', String(isDD));
+      ddToggle.querySelector('.off').classList.toggle('active', !isDD);
+      ddToggle.querySelector('.on').classList.toggle('active', isDD);
+    };
+    ddToggle.addEventListener('click', ()=>{ isDD=!isDD; setDDUI(); });
+    ddToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isDD=!isDD; setDDUI(); }});
+    setDDUI();
+
+    // Toggle: Режим расчёта (MMR / Победы)
+    const calcModeToggle = document.querySelector('#calcModeToggle .switch');
+    let isWinsMode = false;
+    const setModeUI = ()=>{
+      calcModeToggle.classList.toggle('on', isWinsMode);
+      calcModeToggle.setAttribute('aria-checked', String(isWinsMode));
+      calcModeToggle.querySelector('.mmr').classList.toggle('active', !isWinsMode);
+      calcModeToggle.querySelector('.wins').classList.toggle('active', isWinsMode);
+      winsBlock.style.display = isWinsMode ? 'block' : 'none';
+      mmrToEl.parentElement.style.display = isWinsMode ? 'none' : '';
+    };
+    calcModeToggle.addEventListener('click', ()=>{ isWinsMode=!isWinsMode; setModeUI(); });
+    calcModeToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isWinsMode=!isWinsMode; setModeUI(); }});
+    setModeUI();
+
+    function calcMain(){
+      const from = clamp(Number(mmrFromEl.value||0), 1, 11000);
+      let to   = clamp(Number(mmrToEl.value||0),   1, 11000);
+
+      if(!from){
+        totalEl.textContent='— ₽';
+        breakdownEl.textContent='Укажите исходный MMR.';
+        return;
+      }
+
+      let winsInput = 0;
+      if(isWinsMode){
+        winsInput = clamp(Number(winsCountEl.value||0), 1, 10000);
+        if(!winsInput){
+          totalEl.textContent='— ₽';
+          breakdownEl.textContent='Укажите количество побед.';
+          return;
+        }
+        const mmrPerWin = isDD ? 50 : 25;
+        const projectedTo = from + winsInput * mmrPerWin;
+        to = clamp(projectedTo, 1, 11000);
+      }
+
+      if(!isWinsMode && (!to || to<=from)){
+        totalEl.textContent='— ₽';
+        breakdownEl.textContent='Проверь диапазон: конечный MMR должен быть больше исходного.';
+        return;
+      }
+
+      if(isParty){
+        const rate = getRateFromRanges(pricesConfig.partyPerWin, from);
+        if(isWinsMode){
+          const sum = rate * winsInput;
+          totalEl.textContent = `${fmt(sum)} ₽`;
+          breakdownEl.textContent = `Пати: ${winsInput} вин × ${fmt(rate)} ₽/вин = ${fmt(sum)} ₽.`;
+          return;
+        } else {
+          const mmrPerWin = isDD ? 50 : 25;
+          const approxWins = Math.ceil((to - from) / mmrPerWin);
+          const sum = rate * approxWins;
+          totalEl.textContent = `${fmt(sum)} ₽`;
+          breakdownEl.textContent = `Пати: ~${approxWins} вин × ${fmt(rate)} ₽/вин (≈ ${mmrPerWin} MMR/вин) = ${fmt(sum)} ₽.`;
+          return;
+        }
+      }
+
+      // Соло буст по сегментам
+      const {sum, parts} = segmentSum(from, to, pricesConfig.mmrSoloRubPer100, 100);
+
+      // DD надбавка
+      let ddExtra = 0;
+      if(isDD){
+        if(pricesConfig.ddMode === 'percent'){
+          const th = pricesConfig.ddThreshold;
+          if(to > Math.max(th, from)){
+            const fromDD = Math.max(from, th);
+            const {sum: ddSum} = segmentSum(fromDD, to, pricesConfig.mmrSoloRubPer100, 100);
+            ddExtra = ddSum * (pricesConfig.ddValue/100);
+          }
+        } else if(pricesConfig.ddMode === 'fixed'){
+          ddExtra = pricesConfig.ddValue;
+        }
+      }
+
+      // Смурф-пулл надбавка (процент на итог после DD)
+      let smurfExtra = 0;
+      if(smurfPoolEl.checked){
+        smurfExtra = (sum + ddExtra) * (pricesConfig.smurfPoolPercent/100);
+      }
+
+      const final = Math.round(sum + ddExtra + smurfExtra);
+      totalEl.textContent = `${fmt(final)} ₽`;
+
+      // Детализация
+      const lines = [];
+      if(isWinsMode){
+        const mmrPerWin = isDD ? 50 : 25;
+        const gained = to - from;
+        lines.push(`По победам: ${winsInput} × ${mmrPerWin} MMR = ${fmt(gained)} MMR`);
+      }
+      parts.forEach(p=>{
+        lines.push(`${p.delta} MMR в диапазоне ${p.range} × ${fmt(p.rate)} ₽/100 = ${fmt(Math.round(p.cost))} ₽`);
+      });
+      if(isDD && ddExtra>0){
+        if(pricesConfig.ddMode==='percent'){
+          lines.push(`ДД: +${pricesConfig.ddValue}% на часть выше ${pricesConfig.ddThreshold}: +${fmt(Math.round(ddExtra))} ₽`);
+        }else{
+          lines.push(`ДД: фикс +${fmt(Math.round(ddExtra))} ₽`);
+        }
+      }
+      if(smurfExtra>0){
+        lines.push(`Смурф-пулл: +${pricesConfig.smurfPoolPercent}% = +${fmt(Math.round(smurfExtra))} ₽`);
+      }
+      breakdownEl.textContent = lines.join(' • ');
+    }
+
+    calcBtn.addEventListener('click', calcMain);
+    resetBtn.addEventListener('click', ()=>{
+      mmrFromEl.value = '';
+      mmrToEl.value = '';
+      winsCountEl.value = '';
+      isDD=false; setDDUI();
+      totalEl.textContent='— ₽';
+      breakdownEl.textContent='Введите данные и нажмите “Рассчитать”.';
+      if(isParty){ isParty=false; setBoostToggleUI(); }
+      if(isWinsMode){ isWinsMode=false; setModeUI(); }
+    });
+
+    // ==========================
+    // Tabs
+    // ==========================
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(t=>{
+      t.addEventListener('click', ()=>{
+        tabs.forEach(x=>x.classList.remove('active'));
+        tabContents.forEach(x=>x.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById(t.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ==========================
+    // Editor UI
+    // ==========================
+    const editorRows = document.getElementById('editorRows');
+    function renderEditor(){
+      editorRows.innerHTML = '';
+
+      // Блок: Соло (за 100 MMR)
+      const soloTitle = document.createElement('div');
+      soloTitle.innerHTML = '<div class="tiny">Соло буст (₽ за 100 MMR)</div>';
+      editorRows.appendChild(soloTitle);
+
+      pricesConfig.mmrSoloRubPer100.forEach((r, idx)=>{
+        const row = document.createElement('div');
+        row.className='edit-row';
+        row.innerHTML = `
+          <input class="field" type="text" value="${r.from}-${r.to}" disabled />
+          <input class="field" type="number" value="${r.rate}" min="1" />
+        `;
+        const input = row.querySelector('input[type="number"]');
+        input.addEventListener('input', ()=>{
+          pricesConfig.mmrSoloRubPer100[idx].rate = Number(input.value||0);
+        });
+        editorRows.appendChild(row);
+      });
+
+      // DD
+      const ddRow = document.createElement('div');
+      ddRow.className='edit-row';
+      ddRow.innerHTML = `
+        <input class="field" type="text" value="ДД порог (MMR)" disabled />
+        <input class="field" type="number" value="${pricesConfig.ddThreshold}" min="0" />
+      `;
+      ddRow.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+        pricesConfig.ddThreshold = Number(e.target.value||0);
+      });
+      editorRows.appendChild(ddRow);
+
+      const ddModeRow = document.createElement('div');
+      ddModeRow.className='edit-row';
+      ddModeRow.innerHTML = `
+        <select class="field" id="ddModeSel">
+          <option value="percent" ${pricesConfig.ddMode==='percent'?'selected':''}>ДД надбавка (%)</option>
+          <option value="fixed" ${pricesConfig.ddMode==='fixed'?'selected':''}>ДД фикс (₽)</option>
+        </select>
+        <input class="field" type="number" step="0.01" id="ddValueInp" value="${pricesConfig.ddValue}" min="0" />
+      `;
+      ddModeRow.querySelector('#ddModeSel').addEventListener('change', (e)=>{
+        pricesConfig.ddMode = e.target.value;
+      });
+      ddModeRow.querySelector('#ddValueInp').addEventListener('input', (e)=>{
+        pricesConfig.ddValue = Number(e.target.value||0);
+      });
+      editorRows.appendChild(ddModeRow);
+
+      // Пати
+      const partyTitle = document.createElement('div');
+      partyTitle.innerHTML = '<div class="tiny" style="margin-top:6px">Пати буст (₽ за вин)</div>';
+      editorRows.appendChild(partyTitle);
+
+      pricesConfig.partyPerWin.forEach((r, idx)=>{
+        const row = document.createElement('div');
+        row.className='edit-row';
+        row.innerHTML = `
+          <input class="field" type="text" value="${r.from}-${r.to}" disabled />
+          <input class="field" type="number" value="${r.rate}" min="1" />
+        `;
+        row.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+          pricesConfig.partyPerWin[idx].rate = Number(e.target.value||0);
+        });
+        editorRows.appendChild(row);
+      });
+
+      // Калибровка
+      const calibTitle = document.createElement('div');
+      calibTitle.innerHTML = '<div class="tiny" style="margin-top:6px">Калибровка (₽ за вин)</div>';
+      editorRows.appendChild(calibTitle);
+
+      pricesConfig.calibrationPerWin.forEach((r, idx)=>{
+        const row = document.createElement('div');
+        row.className='edit-row';
+        row.innerHTML = `
+          <input class="field" type="text" value="${r.from}-${r.to}" disabled />
+          <input class="field" type="number" value="${r.rate}" min="1" />
+        `;
+        row.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+          pricesConfig.calibrationPerWin[idx].rate = Number(e.target.value||0);
+        });
+        editorRows.appendChild(row);
+      });
+
+      // Коучинг
+      const coachTitle = document.createElement('div');
+      coachTitle.innerHTML = '<div class="tiny" style="margin-top:6px">Коучинг (₽/час)</div>';
+      editorRows.appendChild(coachTitle);
+
+      pricesConfig.coachingHourly.forEach((r, idx)=>{
+        const row = document.createElement('div');
+        row.className='edit-row';
+        row.innerHTML = `
+          <input class="field" type="text" value="${r.from}-${r.to}" disabled />
+          <input class="field" type="number" value="${r.rate}" min="1" />
+        `;
+        row.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+          pricesConfig.coachingHourly[idx].rate = Number(e.target.value||0);
+        });
+        editorRows.appendChild(row);
+      });
+
+      // Боевой кубок
+      const battleTitle = document.createElement('div');
+      battleTitle.innerHTML = '<div class="tiny" style="margin-top:6px">Боевой кубок (фикс, ₽)</div>';
+      editorRows.appendChild(battleTitle);
+
+      [3,4,5,6,7,8].forEach(t=>{
+        const row = document.createElement('div');
+        row.className='edit-row';
+        row.innerHTML = `
+          <input class="field" type="text" value="Тир ${t}" disabled />
+          <input class="field" type="number" value="${pricesConfig.battleCup[t]}" min="0" />
+        `;
+        row.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+          pricesConfig.battleCup[t] = Number(e.target.value||0);
+        });
+        editorRows.appendChild(row);
+      });
+
+      // Порядочность
+      const condTitle = document.createElement('div');
+      condTitle.innerHTML = '<div class="tiny" style="margin-top:6px">Порядочность (₽ за 1000)</div>';
+      editorRows.appendChild(condTitle);
+
+      pricesConfig.conductPer1000
+        .sort((a,b)=>a.from-b.from)
+        .forEach((r, idx)=>{
+          const row = document.createElement('div');
+          row.className='edit-row';
+          row.innerHTML = `
+            <input class="field" type="text" value="${r.from}-${r.to}" disabled />
+            <input class="field" type="number" value="${r.rate}" min="0" />
+          `;
+          row.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+            pricesConfig.conductPer1000[idx].rate = Number(e.target.value||0);
+          });
+          editorRows.appendChild(row);
+        });
+
+      const condMulTitle = document.createElement('div');
+      condMulTitle.className='edit-row';
+      condMulTitle.innerHTML = `
+        <input class="field" type="text" value="Акк 7500+ MMR множитель" disabled />
+        <input class="field" type="number" step="0.01" value="${pricesConfig.conductAccHighMultiplier}" min="1" />
+      `;
+      condMulTitle.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+        pricesConfig.conductAccHighMultiplier = Number(e.target.value||0);
+      });
+      editorRows.appendChild(condMulTitle);
+
+      // Смурф-пулл
+      const smurfRow = document.createElement('div');
+      smurfRow.className='edit-row';
+      smurfRow.innerHTML = `
+        <input class="field" type="text" value="Смурф-пулл надбавка (%)" disabled />
+        <input class="field" type="number" step="0.1" value="${pricesConfig.smurfPoolPercent}" min="0" />
+      `;
+      smurfRow.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+        pricesConfig.smurfPoolPercent = Number(e.target.value||0);
+      });
+      editorRows.appendChild(smurfRow);
+
+      // 100 часов
+      const hoursTitle = document.createElement('div');
+      hoursTitle.innerHTML = '<div class="tiny" style="margin-top:6px">Часы</div>';
+      editorRows.appendChild(hoursTitle);
+
+      const hoursBulkRow = document.createElement('div');
+      hoursBulkRow.className='edit-row';
+      hoursBulkRow.innerHTML = `
+        <input class="field" type="text" value="Опт (100 ч)" disabled />
+        <input class="field" type="number" value="${pricesConfig.hours.bulk100}" min="0" />
+      `;
+      hoursBulkRow.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+        pricesConfig.hours.bulk100 = Number(e.target.value||0);
+      });
+      editorRows.appendChild(hoursBulkRow);
+
+      const hoursRetailRow = document.createElement('div');
+      hoursRetailRow.className='edit-row';
+      hoursRetailRow.innerHTML = `
+        <input class="field" type="text" value="Розница (₽/час)" disabled />
+        <input class="field" type="number" value="${pricesConfig.hours.retailPerHour}" min="0" />
+      `;
+      hoursRetailRow.querySelector('input[type="number"]').addEventListener('input', (e)=>{
+        pricesConfig.hours.retailPerHour = Number(e.target.value||0);
+      });
+      editorRows.appendChild(hoursRetailRow);
+    }
+    renderEditor();
+
+    // ==========================
+    // Party calc (за вин)
+    // ==========================
+    const partyMmr   = document.getElementById('partyMmr');
+    const partyWins  = document.getElementById('partyWins');
+    const partyBtn   = document.getElementById('partyCalc');
+    const partyTotal = document.getElementById('partyTotal');
+    const partyHint  = document.getElementById('partyHint');
+
+    partyBtn.addEventListener('click', ()=>{
+      const mmr = clamp(Number(partyMmr.value||0),10,11000);
+      const wins = clamp(Number(partyWins.value||0),1,200);
+      const rate = getRateFromRanges(pricesConfig.partyPerWin, mmr);
+      const sum = rate * wins;
+      partyTotal.textContent = `${fmt(sum)} ₽`;
+      partyHint.textContent = `Тариф ${fmt(rate)} ₽/вин при ${mmr} MMR × ${wins} вин = ${fmt(sum)} ₽.`;
+    });
+
+    // ==========================
+    // Calibration calc
+    // ==========================
+    const calibMmr  = document.getElementById('calibMmr');
+    const calibWins = document.getElementById('calibWins');
+    const calibBtn  = document.getElementById('calibCalc');
+    const calibTotal= document.getElementById('calibTotal');
+
+    calibBtn.addEventListener('click', ()=>{
+      const mmr = clamp(Number(calibMmr.value||0),0,11000);
+      const wins = clamp(Number(calibWins.value||0),1,10);
+      const rate = getRateFromRanges(pricesConfig.calibrationPerWin, mmr);
+      const sum = rate * wins;
+      calibTotal.textContent = `${fmt(sum)} ₽`;
+    });
+
+    // ==========================
+    // Coaching calc
+    // ==========================
+    const coachMmr   = document.getElementById('coachMmr');
+    const coachHours = document.getElementById('coachHours');
+    const coachBtn   = document.getElementById('coachCalc');
+    const coachTotal = document.getElementById('coachTotal');
+
+    coachBtn.addEventListener('click', ()=>{
+      const mmr = clamp(Number(coachMmr.value||0),0,20000);
+      const hours = clamp(Number(coachHours.value||0),1,1000);
+      const rate = getRateFromRanges(pricesConfig.coachingHourly, mmr);
+      coachTotal.textContent = `${fmt(rate*hours)} ₽`;
+    });
+
+    // ==========================
+    // Battle Cup calc
+    // ==========================
+    const battleTier = document.getElementById('battleTier');
+    const battleBtn  = document.getElementById('battleCalc');
+    const battleTotal= document.getElementById('battleTotal');
+    battleBtn.addEventListener('click', ()=>{
+      const t = battleTier.value;
+      battleTotal.textContent = `${fmt(pricesConfig.battleCup[t]||0)} ₽`;
+    });
+
+    // ==========================
+    // Conduct calc
+    // ==========================
+    const condFrom   = document.getElementById('condFrom');
+    const condTo     = document.getElementById('condTo');
+    const condAccHigh= document.getElementById('condAccHigh');
+    const condBtn    = document.getElementById('condCalc');
+    const condTotal  = document.getElementById('condTotal');
+    const condHint   = document.getElementById('condHint');
+
+    function segmentSumConduct(from, to, ranges){
+      if(to<=from) return {sum:0, parts:[]};
+      let sum=0, parts=[];
+      for(const r of ranges.sort((a,b)=>a.from-b.from)){
+        const lo = Math.max(from, r.from);
+        const hi = Math.min(to, r.to);
+        if(hi>lo){
+          const delta = hi - lo;
+          const k = delta/1000;
+          const cost = k * r.rate;
+          sum+=cost;
+          parts.push({range:`${r.from}-${r.to}`, delta, rate:r.rate, cost});
+        }
+        if(to<=r.to) break;
+      }
+      return {sum, parts};
+    }
+
+    condBtn.addEventListener('click', ()=>{
+      const f = clamp(Number(condFrom.value||0),0,11000);
+      const t = clamp(Number(condTo.value||0),0,11000);
+      if(t<=f){ condTotal.textContent='— ₽'; condHint.textContent='Проверьте диапазон: цель должна быть выше текущей.'; return; }
+
+      const {sum, parts} = segmentSumConduct(f, t, pricesConfig.conductPer1000);
+      const mul = condAccHigh.checked ? pricesConfig.conductAccHighMultiplier : 1;
+      const final = Math.round(sum * mul);
+      condTotal.textContent = `${fmt(final)} ₽`;
+      const lines = parts.map(p=>`${p.delta} пунктов в ${p.range} × ${fmt(p.rate)} ₽/1000 = ${fmt(Math.round(p.cost))} ₽`);
+      if(mul>1) lines.push(`Множитель 7500+ MMR: ×${mul.toFixed(2)}`);
+      condHint.textContent = lines.join(' • ');
+    });
+
+    // ==========================
+    // Hours calc
+    // ==========================
+    const hoursToggle = document.querySelector('#hoursToggle .switch');
+    let isBulk=false;
+    const setHoursUI = ()=>{
+      hoursToggle.classList.toggle('on', isBulk);
+      hoursToggle.setAttribute('aria-checked', String(isBulk));
+      hoursToggle.querySelector('.retail').classList.toggle('active', !isBulk);
+      hoursToggle.querySelector('.bulk').classList.toggle('active', isBulk);
+    };
+    hoursToggle.addEventListener('click', ()=>{ isBulk=!isBulk; setHoursUI(); });
+    hoursToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isBulk=!isBulk; setHoursUI(); }});
+    setHoursUI();
+
+    const hoursCount = document.getElementById('hoursCount');
+    const hoursBtn   = document.getElementById('hoursCalc');
+    const hoursTotal = document.getElementById('hoursTotal');
+    const hoursHint  = document.getElementById('hoursHint');
+
+    hoursBtn.addEventListener('click', ()=>{
+      const h = clamp(Number(hoursCount.value||0),1,10000);
+      let sum = 0;
+      if(isBulk){
+        // Оптовый пакет кратно 100 часам
+        const packs = Math.floor(h / 100);
+        const remainder = h % 100;
+        sum = packs * pricesConfig.hours.bulk100 + remainder * pricesConfig.hours.retailPerHour;
+        hoursHint.textContent = `${packs}×(100 ч по ${fmt(pricesConfig.hours.bulk100)} ₽) + ${remainder}×${fmt(pricesConfig.hours.retailPerHour)} ₽/ч.`;
+      }else{
+        sum = h * pricesConfig.hours.retailPerHour;
+        hoursHint.textContent = `Розница: ${h}×${fmt(pricesConfig.hours.retailPerHour)} ₽/ч.`;
+      }
+      hoursTotal.textContent = `${fmt(sum)} ₽`;
+    });
+  </script>
+</body>
+</html>
