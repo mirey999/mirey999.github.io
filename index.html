@@ -197,6 +197,10 @@
       background:rgba(192,77,255,0.16); border:1px solid rgba(192,77,255,0.4);
       color:#fff; box-shadow:var(--glow)
     }
+    select option {
+  background-color: #2b2b2b; 
+  color: #fff;
+}
 
     /* Buttons */
     .btn{
@@ -261,13 +265,16 @@
 
   <header>
     <h1>Калькулятор буста PFB</h1>
-    <div class="subtitle">Люблю вас пэфэбешеры <3 .</div>
+    <div class="subtitle">discord: @emotionless_w</div>
   </header>
 
   <main class="container">
     <!-- Main calculator -->
     <section class="card">
       <h2>Калькулятор буста MMR</h2>
+
+      <!-- Клиенты: переключение и добавление -->
+      <div class="tabs" id="clientsTabs" style="margin-bottom:10px"></div>
 
       <div class="row" style="margin-bottom:12px">
         <div class="toggle" id="boostTypeToggle">
@@ -297,10 +304,19 @@
           </div>
         </div>
 
-        <label style="margin:0">
-          <input type="checkbox" id="smurfPool" />
-          Смурф-пулл
-        </label>
+        <div class="toggle" id="smurfToggle" title="Смурф-пулл: +процент к цене">
+          <span class="label">Смурф-пулл</span>
+          <div class="switch" role="switch" aria-checked="false" tabindex="0">
+            <span class="opt off active">-</span>
+            <span class="opt on">+</span>
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div style="min-width:180px">
+          <label>Наценка, %</label>
+          <input class="field" type="number" id="markupPercent" placeholder="например, 10" min="0" max="500" />
+        </div>
       </div>
 
       <div class="grid">
@@ -327,12 +343,24 @@
 
       <div class="result" style="margin-top:14px">
         <div>
-          <div class="tiny">Итоговая стоимость</div>
+          <div class="tiny">Итоговая стоимость (активный клиент)</div>
           <div class="sum" id="totalPrice">— ₽</div>
         </div>
         <div>
           <div class="tiny">Детализация</div>
           <div class="hint" id="breakdown">Введите данные и нажмите “Рассчитать”.</div>
+        </div>
+      </div>
+
+      <!-- Общие итоги и комиссии -->
+      <div class="result" style="margin-top:10px">
+        <div>
+          <div class="tiny">Итого по всем клиентам</div>
+          <div class="sum" id="grandTotal">— ₽</div>
+        </div>
+        <div>
+          <div class="tiny">Комиссии FP</div>
+          <div class="hint" id="feesBlock">11% за лот: — ₽ • 3% вывод: — ₽</div>
         </div>
       </div>
     </section>
@@ -343,7 +371,6 @@
 
       <div class="tabs" id="tabs">
         <div class="tab active" data-tab="editor">Настройка цен</div>
-        <div class="tab" data-tab="party">Пати буст (за вин)</div>
         <div class="tab" data-tab="calibration">Калибровка</div>
         <div class="tab" data-tab="coaching">Коучинг</div>
         <div class="tab" data-tab="battle">Боевой кубок</div>
@@ -357,29 +384,6 @@
         <div class="editor" id="editorRows"></div>
       </div>
 
-      <!-- Party -->
-      <div class="tab-content" id="party">
-        <div class="grid">
-          <div>
-            <label>Текущий MMR (для определения тарифа)</label>
-            <input class="field" type="number" id="partyMmr" placeholder="например, 4200" min="10" max="11000"/>
-          </div>
-          <div>
-            <label>Количество вин (побед)</label>
-            <input class="field" type="number" id="partyWins" placeholder="например, 10" min="1" max="200"/>
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <button class="btn" id="partyCalc">Рассчитать</button>
-        </div>
-        <div class="result" style="margin-top:14px">
-          <div>
-            <div class="tiny">Стоимость Пати буста</div>
-            <div class="sum" id="partyTotal">— ₽</div>
-          </div>
-          <div class="hint" id="partyHint">Цена за вин по тарифу × кол-во побед.</div>
-        </div>
-      </div>
 
       <!-- Calibration -->
       <div class="tab-content" id="calibration">
@@ -539,7 +543,7 @@
         {from:10500,to:11000,   rate:2000},
       ],
       // ДД настройки
-      ddThreshold: 5620,          // порог для соло сегментов
+      ddThreshold: 0,          // порог для соло сегментов
       ddMode: 'percent',          // 'percent' | 'fixed'
       ddValue: 30,                // если percent → %, если fixed → ₽
 
@@ -611,7 +615,11 @@
       hours: { bulk100: 5000, retailPerHour: 60 },
 
       // Смурф-пулл надбавка (проценты)
-      smurfPoolPercent: 15
+      smurfPoolPercent: 15,
+
+      // Комиссии FunPay
+      fpFeesLotPercent: 11,
+      fpWithdrawPercent: 3
     };
 
     // ==============
@@ -651,9 +659,13 @@
     const totalEl   = document.getElementById('totalPrice');
     const breakdownEl = document.getElementById('breakdown');
     const ddToggle  = document.querySelector('#ddToggle .switch');
-    const smurfPoolEl = document.getElementById('smurfPool');
+    const smurfToggle = document.querySelector('#smurfToggle .switch');
     const winsBlock = document.getElementById('winsBlock');
     const winsCountEl = document.getElementById('winsCount');
+    const markupPercentEl = document.getElementById('markupPercent');
+    const clientsTabsEl = document.getElementById('clientsTabs');
+    const grandTotalEl = document.getElementById('grandTotal');
+    const feesBlockEl = document.getElementById('feesBlock');
 
     // Toggle: Соло/Пати
     const boostTypeToggle = document.querySelector('#boostTypeToggle .switch');
@@ -680,6 +692,18 @@
     ddToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isDD=!isDD; setDDUI(); }});
     setDDUI();
 
+    // Смурф toggle (как DD)
+    let isSmurf = false;
+    const setSmurfUI = ()=>{
+      smurfToggle.classList.toggle('on', isSmurf);
+      smurfToggle.setAttribute('aria-checked', String(isSmurf));
+      smurfToggle.querySelector('.off').classList.toggle('active', !isSmurf);
+      smurfToggle.querySelector('.on').classList.toggle('active', isSmurf);
+    };
+    smurfToggle.addEventListener('click', ()=>{ isSmurf=!isSmurf; setSmurfUI(); });
+    smurfToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isSmurf=!isSmurf; setSmurfUI(); }});
+    setSmurfUI();
+
     // Toggle: Режим расчёта (MMR / Победы)
     const calcModeToggle = document.querySelector('#calcModeToggle .switch');
     let isWinsMode = false;
@@ -695,113 +719,251 @@
     calcModeToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isWinsMode=!isWinsMode; setModeUI(); }});
     setModeUI();
 
-    function calcMain(){
-      const from = clamp(Number(mmrFromEl.value||0), 1, 11000);
-      let to   = clamp(Number(mmrToEl.value||0),   1, 11000);
+    // ==========================
+    // Multi-client state
+    // ==========================
+    function makeClient(name){
+      return {
+        name,
+        mmrFrom: 0,
+        mmrTo: 0,
+        winsCount: 0,
+        isParty: false,
+        isDD: false,
+        isWinsMode: false,
+        smurf: false,
+        markupPercent: 0
+      };
+    }
 
-      if(!from){
-        totalEl.textContent='— ₽';
-        breakdownEl.textContent='Укажите исходный MMR.';
-        return;
-      }
+    let clients = [ makeClient('Клиент 1') ];
+    let activeClientIndex = 0;
 
+    function renderClientsTabs(){
+      clientsTabsEl.innerHTML = '';
+      clients.forEach((c, idx)=>{
+        const tab = document.createElement('div');
+        tab.className = 'tab' + (idx===activeClientIndex?' active':'');
+        const title = document.createElement('span');
+        title.textContent = c.name;
+        title.style.marginRight = '6px';
+        tab.appendChild(title);
+
+        const canDelete = clients.length > 1;
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-ghost';
+        delBtn.textContent = '×';
+        delBtn.title = canDelete ? 'Удалить клиента' : 'Нельзя удалить последнего клиента';
+        delBtn.style.padding = '4px 8px';
+        delBtn.style.lineHeight = '1';
+        delBtn.style.borderRadius = '10px';
+        delBtn.disabled = !canDelete;
+        delBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          if(!canDelete) return;
+          // Сохраняем UI и удаляем клиента
+          saveUIToClient();
+          clients.splice(idx,1);
+          if(activeClientIndex >= clients.length){ activeClientIndex = clients.length-1; }
+          loadClientToUI();
+          calcMain(true);
+        });
+        tab.appendChild(delBtn);
+
+        tab.addEventListener('click', ()=>{
+          saveUIToClient();
+          activeClientIndex = idx;
+          loadClientToUI();
+          // Авто-пересчёт активного и агрегатов при переключении
+          calcMain(true);
+        });
+        clientsTabsEl.appendChild(tab);
+      });
+      const addBtn = document.createElement('div');
+      addBtn.className = 'tab';
+      addBtn.textContent = '+ Добавить клиента';
+      addBtn.addEventListener('click', ()=>{
+        saveUIToClient();
+        const newIdx = clients.length + 1;
+        clients.push(makeClient(`Клиент ${newIdx}`));
+        activeClientIndex = clients.length - 1;
+        renderClientsTabs();
+        loadClientToUI();
+        calcMain(true);
+      });
+      clientsTabsEl.appendChild(addBtn);
+    }
+
+    function loadClientToUI(){
+      const c = clients[activeClientIndex];
+      mmrFromEl.value = c.mmrFrom || '';
+      mmrToEl.value = c.mmrTo || '';
+      winsCountEl.value = c.winsCount || '';
+      isSmurf = !!c.smurf; setSmurfUI();
+      markupPercentEl.value = (c.markupPercent ?? 0) || '';
+
+      isParty = !!c.isParty; setBoostToggleUI();
+      isDD = !!c.isDD; setDDUI();
+      isWinsMode = !!c.isWinsMode; setModeUI();
+      renderClientsTabs();
+    }
+
+    function saveUIToClient(){
+      const c = clients[activeClientIndex];
+      c.mmrFrom = clamp(Number(mmrFromEl.value||0), 0, 11000);
+      c.mmrTo = clamp(Number(mmrToEl.value||0), 0, 11000);
+      c.winsCount = clamp(Number(winsCountEl.value||0), 0, 10000);
+      c.smurf = !!isSmurf;
+      c.markupPercent = clamp(Number(markupPercentEl.value||0), 0, 10000);
+      c.isParty = !!isParty;
+      c.isDD = !!isDD;
+      c.isWinsMode = !!isWinsMode;
+    }
+
+    function computeClient(c){
+      const from = clamp(Number(c.mmrFrom||0), 1, 11000);
+      let to = clamp(Number(c.mmrTo||0), 1, 11000);
       let winsInput = 0;
-      if(isWinsMode){
-        winsInput = clamp(Number(winsCountEl.value||0), 1, 10000);
-        if(!winsInput){
-          totalEl.textContent='— ₽';
-          breakdownEl.textContent='Укажите количество побед.';
-          return;
-        }
-        const mmrPerWin = isDD ? 50 : 25;
+      let parts = [];
+      let descriptionLines = [];
+
+      if(c.isWinsMode){
+        winsInput = clamp(Number(c.winsCount||0), 1, 10000);
+        const mmrPerWin = c.isDD ? 50 : 25;
         const projectedTo = from + winsInput * mmrPerWin;
         to = clamp(projectedTo, 1, 11000);
       }
 
-      if(!isWinsMode && (!to || to<=from)){
-        totalEl.textContent='— ₽';
-        breakdownEl.textContent='Проверь диапазон: конечный MMR должен быть больше исходного.';
-        return;
+      if(!from || (!c.isWinsMode && (!to || to<=from))){
+        return { ok:false, total:0, subtotal:0, ddExtra:0, smurfExtra:0, markupExtra:0, parts:[], lines:[] };
       }
 
-      if(isParty){
+      if(c.isParty){
         const rate = getRateFromRanges(pricesConfig.partyPerWin, from);
-        if(isWinsMode){
-          const sum = rate * winsInput;
-          totalEl.textContent = `${fmt(sum)} ₽`;
-          breakdownEl.textContent = `Пати: ${winsInput} вин × ${fmt(rate)} ₽/вин = ${fmt(sum)} ₽.`;
-          return;
+        let base = 0;
+        if(c.isWinsMode){
+          base = rate * winsInput;
+          descriptionLines.push(`Пати: ${winsInput} вин × ${fmt(rate)} ₽/вин = ${fmt(base)} ₽.`);
         } else {
-          const mmrPerWin = isDD ? 50 : 25;
+          const mmrPerWin = c.isDD ? 50 : 25;
           const approxWins = Math.ceil((to - from) / mmrPerWin);
-          const sum = rate * approxWins;
-          totalEl.textContent = `${fmt(sum)} ₽`;
-          breakdownEl.textContent = `Пати: ~${approxWins} вин × ${fmt(rate)} ₽/вин (≈ ${mmrPerWin} MMR/вин) = ${fmt(sum)} ₽.`;
-          return;
+          base = rate * approxWins;
+          descriptionLines.push(`Пати: ~${approxWins} вин × ${fmt(rate)} ₽/вин (≈ ${mmrPerWin} MMR/вин) = ${fmt(base)} ₽.`);
         }
+        const smurfExtra = c.smurf ? base * (pricesConfig.smurfPoolPercent/100) : 0;
+        const subtotal = base + smurfExtra;
+        const markupExtra = subtotal * (Number(c.markupPercent||0)/100);
+        const total = Math.round(subtotal + markupExtra);
+        if(smurfExtra>0) descriptionLines.push(`Смурф-пулл: +${pricesConfig.smurfPoolPercent}% = +${fmt(Math.round(smurfExtra))} ₽`);
+        if(markupExtra>0) descriptionLines.push(`Наценка: +${(Number(c.markupPercent)||0)}% = +${fmt(Math.round(markupExtra))} ₽`);
+        return { ok:true, total, subtotal:Math.round(subtotal), ddExtra:0, smurfExtra:Math.round(smurfExtra), markupExtra:Math.round(markupExtra), parts:[], lines:descriptionLines };
       }
 
-      // Соло буст по сегментам
-      const {sum, parts} = segmentSum(from, to, pricesConfig.mmrSoloRubPer100, 100);
+      // Соло
+      const res = segmentSum(from, to, pricesConfig.mmrSoloRubPer100, 100);
+      let baseSum = res.sum; parts = res.parts;
 
-      // DD надбавка
-      let ddExtra = 0;
-      if(isDD){
+      // DD только на часть выше порога
+      let ddExtraCalc = 0;
+      if(c.isDD){
         if(pricesConfig.ddMode === 'percent'){
           const th = pricesConfig.ddThreshold;
           if(to > Math.max(th, from)){
             const fromDD = Math.max(from, th);
             const {sum: ddSum} = segmentSum(fromDD, to, pricesConfig.mmrSoloRubPer100, 100);
-            ddExtra = ddSum * (pricesConfig.ddValue/100);
+            ddExtraCalc = ddSum * (pricesConfig.ddValue/100);
           }
         } else if(pricesConfig.ddMode === 'fixed'){
-          ddExtra = pricesConfig.ddValue;
+          ddExtraCalc = pricesConfig.ddValue;
         }
       }
 
-      // Смурф-пулл надбавка (процент на итог после DD)
-      let smurfExtra = 0;
-      if(smurfPoolEl.checked){
-        smurfExtra = (sum + ddExtra) * (pricesConfig.smurfPoolPercent/100);
-      }
+      // Смурф-пулл на сумму после DD
+      const smurfExtraCalc = c.smurf ? (baseSum + ddExtraCalc) * (pricesConfig.smurfPoolPercent/100) : 0;
+      const subtotalCalc = baseSum + ddExtraCalc + smurfExtraCalc;
+      const markupExtraCalc = subtotalCalc * (Number(c.markupPercent||0)/100);
+      const totalCalc = Math.round(subtotalCalc + markupExtraCalc);
 
-      const final = Math.round(sum + ddExtra + smurfExtra);
-      totalEl.textContent = `${fmt(final)} ₽`;
-
-      // Детализация
-      const lines = [];
-      if(isWinsMode){
-        const mmrPerWin = isDD ? 50 : 25;
+      if(c.isWinsMode){
+        const mmrPerWin = c.isDD ? 50 : 25;
         const gained = to - from;
-        lines.push(`По победам: ${winsInput} × ${mmrPerWin} MMR = ${fmt(gained)} MMR`);
+        descriptionLines.push(`По победам: ${winsInput} × ${mmrPerWin} MMR = ${fmt(gained)} MMR`);
       }
       parts.forEach(p=>{
-        lines.push(`${p.delta} MMR в диапазоне ${p.range} × ${fmt(p.rate)} ₽/100 = ${fmt(Math.round(p.cost))} ₽`);
+        descriptionLines.push(`${p.delta} MMR в диапазоне ${p.range} × ${fmt(p.rate)} ₽/100 = ${fmt(Math.round(p.cost))} ₽`);
       });
-      if(isDD && ddExtra>0){
+      if(c.isDD && ddExtraCalc>0){
         if(pricesConfig.ddMode==='percent'){
-          lines.push(`ДД: +${pricesConfig.ddValue}% на часть выше ${pricesConfig.ddThreshold}: +${fmt(Math.round(ddExtra))} ₽`);
-        }else{
-          lines.push(`ДД: фикс +${fmt(Math.round(ddExtra))} ₽`);
+          descriptionLines.push(`ДД: +${pricesConfig.ddValue}% на часть выше ${pricesConfig.ddThreshold}: +${fmt(Math.round(ddExtraCalc))} ₽`);
+        } else {
+          descriptionLines.push(`ДД: фикс +${fmt(Math.round(ddExtraCalc))} ₽`);
         }
       }
-      if(smurfExtra>0){
-        lines.push(`Смурф-пулл: +${pricesConfig.smurfPoolPercent}% = +${fmt(Math.round(smurfExtra))} ₽`);
+      if(smurfExtraCalc>0){
+        descriptionLines.push(`Смурф-пулл: +${pricesConfig.smurfPoolPercent}% = +${fmt(Math.round(smurfExtraCalc))} ₽`);
       }
-      breakdownEl.textContent = lines.join(' • ');
+      if(markupExtraCalc>0){
+        descriptionLines.push(`Наценка: +${(Number(c.markupPercent)||0)}% = +${fmt(Math.round(markupExtraCalc))} ₽`);
+      }
+      return { ok:true, total: totalCalc, subtotal: Math.round(subtotalCalc), ddExtra: Math.round(ddExtraCalc), smurfExtra: Math.round(smurfExtraCalc), markupExtra: Math.round(markupExtraCalc), parts, lines: descriptionLines };
     }
 
-    calcBtn.addEventListener('click', calcMain);
+    function recalcGrand(){
+      // Суммируем итог после наценки по всем клиентам
+      let sumAll = 0;
+      clients.forEach(c=>{
+        const r = computeClient(c);
+        if(r.ok){ sumAll += r.total; }
+      });
+      if(sumAll<=0){
+        grandTotalEl.textContent = '— ₽';
+        feesBlockEl.textContent = `11% за лот: — ₽ • 3% вывод: — ₽`;
+        return;
+      }
+      grandTotalEl.textContent = `${fmt(Math.round(sumAll))} ₽`;
+      const lotFee = Math.round(sumAll * (pricesConfig.fpFeesLotPercent/100));
+      const withdrawFee = Math.round(sumAll * (pricesConfig.fpWithdrawPercent/100));
+      feesBlockEl.textContent = `${pricesConfig.fpFeesLotPercent}% за лот: ${fmt(lotFee)} ₽ • ${pricesConfig.fpWithdrawPercent}% вывод: ${fmt(withdrawFee)} ₽`;
+    }
+
+    function calcMain(isSilent){
+      saveUIToClient();
+      const r = computeClient(clients[activeClientIndex]);
+
+      if(!r.ok){
+        totalEl.textContent='— ₽';
+        breakdownEl.textContent='Заполните корректные значения и попробуйте снова.';
+      } else {
+        totalEl.textContent = `${fmt(r.total)} ₽`;
+        breakdownEl.textContent = r.lines.join(' • ');
+      }
+      recalcGrand();
+      if(!isSilent){ renderClientsTabs(); }
+    }
+
+    calcBtn.addEventListener('click', ()=>calcMain(false));
+    markupPercentEl.addEventListener('input', ()=>calcMain(true));
+    smurfToggle.addEventListener('click', ()=>calcMain(true));
+    smurfToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ calcMain(true); }});
     resetBtn.addEventListener('click', ()=>{
+      // Сброс только активного клиента
       mmrFromEl.value = '';
       mmrToEl.value = '';
       winsCountEl.value = '';
+      markupPercentEl.value = '';
+      isSmurf=false; setSmurfUI();
       isDD=false; setDDUI();
-      totalEl.textContent='— ₽';
-      breakdownEl.textContent='Введите данные и нажмите “Рассчитать”.';
       if(isParty){ isParty=false; setBoostToggleUI(); }
       if(isWinsMode){ isWinsMode=false; setModeUI(); }
+      totalEl.textContent='— ₽';
+      breakdownEl.textContent='Введите данные и нажмите “Рассчитать”.';
+      saveUIToClient();
+      recalcGrand();
     });
+
+    // Первичная инициализация
+    renderClientsTabs();
+    loadClientToUI();
 
     // ==========================
     // Tabs
@@ -844,16 +1006,6 @@
       });
 
       // DD
-      const ddRow = document.createElement('div');
-      ddRow.className='edit-row';
-      ddRow.innerHTML = `
-        <input class="field" type="text" value="ДД порог (MMR)" disabled />
-        <input class="field" type="number" value="${pricesConfig.ddThreshold}" min="0" />
-      `;
-      ddRow.querySelector('input[type="number"]').addEventListener('input', (e)=>{
-        pricesConfig.ddThreshold = Number(e.target.value||0);
-      });
-      editorRows.appendChild(ddRow);
 
       const ddModeRow = document.createElement('div');
       ddModeRow.className='edit-row';
@@ -1016,23 +1168,7 @@
     }
     renderEditor();
 
-    // ==========================
-    // Party calc (за вин)
-    // ==========================
-    const partyMmr   = document.getElementById('partyMmr');
-    const partyWins  = document.getElementById('partyWins');
-    const partyBtn   = document.getElementById('partyCalc');
-    const partyTotal = document.getElementById('partyTotal');
-    const partyHint  = document.getElementById('partyHint');
-
-    partyBtn.addEventListener('click', ()=>{
-      const mmr = clamp(Number(partyMmr.value||0),10,11000);
-      const wins = clamp(Number(partyWins.value||0),1,200);
-      const rate = getRateFromRanges(pricesConfig.partyPerWin, mmr);
-      const sum = rate * wins;
-      partyTotal.textContent = `${fmt(sum)} ₽`;
-      partyHint.textContent = `Тариф ${fmt(rate)} ₽/вин при ${mmr} MMR × ${wins} вин = ${fmt(sum)} ₽.`;
-    });
+    // (Удалено) Party calc UI и обработчики
 
     // ==========================
     // Calibration calc
@@ -1156,3 +1292,4 @@
   </script>
 </body>
 </html>
+
