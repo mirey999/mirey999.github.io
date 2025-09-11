@@ -197,10 +197,49 @@
       background:rgba(192,77,255,0.16); border:1px solid rgba(192,77,255,0.4);
       color:#fff; box-shadow:var(--glow)
     }
-    select option {
-  background-color: #2b2b2b; 
-  color: #fff;
-}
+    /* Select styling */
+    select.field{
+      -webkit-appearance:none; appearance:none;
+      padding-right:42px; cursor:pointer;
+      background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="%23c04dff"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat:no-repeat; background-position: calc(100% - 14px) 50%; background-size:16px;
+    }
+    select.field:hover{ filter:brightness(1.05) }
+    select.field:focus{ box-shadow:0 0 0 4px rgba(192,77,255,0.18) }
+    select.field::-ms-expand{ display:none }
+    select option { background-color:#2b2b2b; color:#fff }
+
+    /* Fancy custom select dropdown */
+    .fs-wrapper{ position:relative; width:100% }
+    .fs-display{
+      display:block; width:100%; cursor:pointer; user-select:none;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.18);
+      border-radius:14px; padding:12px 42px 12px 14px; color:var(--text);
+      position:relative; transition:border-color var(--speed), transform var(--speed);
+    }
+    .fs-display:after{
+      content:""; position:absolute; right:14px; top:50%; width:16px; height:16px; transform:translateY(-50%);
+      background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="%23c04dff"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat center/16px;
+      opacity:.9
+    }
+    .fs-display:focus{ outline:none; border-color:var(--accent); transform:translateY(-1px); box-shadow:0 0 0 4px rgba(192,77,255,0.18) }
+    .fs-menu{
+      position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:1000; max-height:260px; overflow:auto;
+      border-radius:14px; border:1px solid rgba(255,255,255,0.18);
+      backdrop-filter: blur(14px) saturate(120%);
+      background:linear-gradient(180deg, rgba(20,0,41,0.94), rgba(20,0,41,0.88));
+      box-shadow:0 14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+      display:none
+    }
+    .fs-menu.open{ display:block; animation:fade .18s ease }
+    .fs-option{
+      padding:12px 14px; color:#fff; font-weight:700; letter-spacing:.2px; font-size:14px;
+      display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+      text-shadow:0 1px 2px rgba(0,0,0,0.35)
+    }
+    .fs-option:not(:last-child){ border-bottom:1px solid rgba(255,255,255,0.08) }
+    .fs-option:hover{ background:rgba(192,77,255,0.18) }
+    .fs-option.active{ background:rgba(192,77,255,0.28) }
 
     /* Buttons */
     .btn{
@@ -256,12 +295,37 @@
     }
     .tiny{ font-size:12px; color:var(--muted) }
     .ok{ color:var(--ok) } .warn{ color:var(--danger) }
+
+    /* Fancy scrollbars */
+    *{ scrollbar-width:thin; scrollbar-color: var(--accent) transparent }
+    *::-webkit-scrollbar{ width:10px; height:10px }
+    *::-webkit-scrollbar-track{ background:var(--glass-bg); border-radius:10px }
+    *::-webkit-scrollbar-thumb{
+      background:linear-gradient(180deg, var(--accent), var(--accent-2));
+      border-radius:10px; border:2px solid rgba(0,0,0,0.25);
+      box-shadow:0 2px 10px rgba(192,77,255,0.4)
+    }
+    *::-webkit-scrollbar-thumb:hover{
+      background:linear-gradient(180deg, #d17bff, #93a0ff)
+    }
+
+    /* Corner case for overlaying gif badge */
+    .brand-gif{
+      position:fixed; right:18px; bottom:18px; width:96px; height:96px;
+      border-radius:14px; border:1px solid var(--glass-stroke);
+      box-shadow:var(--shadow); opacity:.9; mix-blend-mode:screen;
+      backdrop-filter: blur(6px);
+      animation:float2 6s ease-in-out infinite alternate
+    }
+    @keyframes float2{ from{ transform:translateY(0) } to{ transform:translateY(-6px) } }
+    @media (max-width:640px){ .brand-gif{ width:72px; height:72px; right:12px; bottom:12px } }
   </style>
 </head>
 <body>
   <div class="orb one"></div>
   <div class="orb two"></div>
   <div class="orb three"></div>
+  <img class="brand-gif" src="brand.gif" alt="PFB"/>
 
   <header>
     <h1>Калькулятор буста PFB</h1>
@@ -295,7 +359,7 @@
           </div>
         </div>
 
-        <div class="toggle" id="ddToggle" title="Клиенты с даблами после 5620 MMR: +30% (только для Соло буста)">
+        <div class="toggle" id="ddToggle" title="ДД: Соло ×0.75; Пати до 5630 ×1.5, выше ×1.3">
           <span class="label">ДД</span>
           <div class="switch" role="switch" aria-checked="false" tabindex="0">
             <span class="opt off active">-</span>
@@ -313,9 +377,18 @@
           </div>
         </div>
 
-        <div style="min-width:180px">
-          <label>Наценка, %</label>
-          <input class="field" type="number" id="markupPercent" placeholder="например, 10" min="0" max="500" />
+        <div class="toggle" id="oneTwoPosToggle" title="1–2 позиции: до 6000 +20%, от 6000 +50%">
+          <span class="label">1–2 позиции</span>
+          <div class="switch" role="switch" aria-checked="false" tabindex="0">
+            <span class="opt off active">-</span>
+            <span class="opt on">+</span>
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div style="flex-basis:100%; min-width:220px">
+          <label>Профит, ₽</label>
+          <input class="field" type="number" id="markupPercent" placeholder="например, 500" min="0" max="10000000" />
         </div>
       </div>
 
@@ -325,6 +398,10 @@
           <input class="field" type="number" id="mmrFrom" placeholder="например, 3210" min="1" max="11000" />
         </div>
         <div>
+          <label>Порядочность клиента</label>
+          <input class="field" type="number" id="conductScoreInput" placeholder="например, 5000" min="0" max="11000" />
+        </div>
+        <div id="mmrToWrap" style="grid-column: 1 / -1">
           <label>Конечный MMR</label>
           <input class="field" type="number" id="mmrTo" placeholder="например, 4500" min="1" max="11000" />
         </div>
@@ -338,7 +415,7 @@
       <div class="row" style="margin-top:12px">
         <button class="btn" id="calcBtn">Рассчитать цену</button>
         <button class="btn btn-ghost" id="resetBtn">Сброс</button>
-        <span class="hint">Суммирование по тарифным диапазонам. Для ДД: +30% на часть заказа выше 5620 MMR (только соло).</span>
+        <span class="hint">Суммирование по тарифным диапазонам. ДД: Соло ×0.75; Пати до 5630 ×1.5, выше ×1.3.</span>
       </div>
 
       <div class="result" style="margin-top:14px">
@@ -358,9 +435,13 @@
           <div class="tiny">Итого по всем клиентам</div>
           <div class="sum" id="grandTotal">— ₽</div>
         </div>
+      </div>
+
+      <!-- FunPay pricing suggestion -->
+      <div class="result" style="margin-top:10px">
         <div>
-          <div class="tiny">Комиссии FP</div>
-          <div class="hint" id="feesBlock">11% за лот: — ₽ • 3% вывод: — ₽</div>
+          <div class="tiny">Цена для FunPay [+14%]</div>
+          <div class="sum" id="fpPriceLine">—</div>
         </div>
       </div>
     </section>
@@ -438,14 +519,17 @@
         <div class="grid">
           <div>
             <label>Тир боевого кубка</label>
-            <select class="field" id="battleTier">
-              <option value="3">3 тир</option>
-              <option value="4">4 тир</option>
-              <option value="5">5 тир</option>
-              <option value="6">6 тир</option>
-              <option value="7">7 тир</option>
-              <option value="8">8 тир</option>
-            </select>
+            <div class="fs-wrapper" id="battleTierFS">
+              <button type="button" class="fs-display" id="battleTierDisplay">3 тир</button>
+              <div class="fs-menu" id="battleTierMenu">
+                <div class="fs-option" data-value="3">3 тир</div>
+                <div class="fs-option" data-value="4">4 тир</div>
+                <div class="fs-option" data-value="5">5 тир</div>
+                <div class="fs-option" data-value="6">6 тир</div>
+                <div class="fs-option" data-value="7">7 тир</div>
+                <div class="fs-option" data-value="8">8 тир</div>
+              </div>
+            </div>
           </div>
           <div style="display:flex;align-items:flex-end">
             <button class="btn" id="battleCalc" style="width:100%">Рассчитать</button>
@@ -543,9 +627,11 @@
         {from:10500,to:11000,   rate:2000},
       ],
       // ДД настройки
-      ddThreshold: 0,          // порог для соло сегментов
-      ddMode: 'percent',          // 'percent' | 'fixed'
-      ddValue: 30,                // если percent → %, если fixed → ₽
+      ddSplitThreshold: 5630,     // порог разделения ДД
+      ddPercentBelow: 30,         // % до/включая порог
+      ddPercentAbove: 50,         // % выше порога
+      ddMode: 'percent',          // совместимость; при split-настройках игнорируется
+      ddValue: 30,                // совместимость; при split-настройках игнорируется
 
       // Пати буст (за вин)
       partyPerWin: [
@@ -561,7 +647,7 @@
         {from:6500, to: 7000, rate:400},
         {from:7000, to: 7500, rate:500},
         {from:7500, to: 8000, rate:700},
-        {from:8000, to: 8500, rate:800},
+        {from:8000, to: 8500, rate:850},
         {from:8500, to: 9000, rate:1000},
         {from:9000, to: 9500, rate:1200},
         {from:9500, to:10000, rate:1500},
@@ -627,6 +713,7 @@
     // ==============
     const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
     const fmt = n => n.toLocaleString('ru-RU');
+    const ceil2 = (v)=> Math.ceil((v + Number.EPSILON) * 100) / 100;
 
     function getRateFromRanges(ranges, mmr){
       return ranges.find(r => mmr >= r.from && mmr < r.to)?.rate ?? ranges[ranges.length-1].rate;
@@ -660,12 +747,14 @@
     const breakdownEl = document.getElementById('breakdown');
     const ddToggle  = document.querySelector('#ddToggle .switch');
     const smurfToggle = document.querySelector('#smurfToggle .switch');
+    const oneTwoPosToggle = document.querySelector('#oneTwoPosToggle .switch');
     const winsBlock = document.getElementById('winsBlock');
     const winsCountEl = document.getElementById('winsCount');
     const markupPercentEl = document.getElementById('markupPercent');
+    const fpPriceLineEl = document.getElementById('fpPriceLine');
+    const conductScoreInput = document.getElementById('conductScoreInput');
     const clientsTabsEl = document.getElementById('clientsTabs');
     const grandTotalEl = document.getElementById('grandTotal');
-    const feesBlockEl = document.getElementById('feesBlock');
 
     // Toggle: Соло/Пати
     const boostTypeToggle = document.querySelector('#boostTypeToggle .switch');
@@ -704,6 +793,25 @@
     smurfToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isSmurf=!isSmurf; setSmurfUI(); }});
     setSmurfUI();
 
+    // 1–2 позиции toggle
+    let isOneTwoPos = false;
+    const setOneTwoPosUI = ()=>{
+      oneTwoPosToggle.classList.toggle('on', isOneTwoPos);
+      oneTwoPosToggle.setAttribute('aria-checked', String(isOneTwoPos));
+      oneTwoPosToggle.querySelector('.off').classList.toggle('active', !isOneTwoPos);
+      oneTwoPosToggle.querySelector('.on').classList.toggle('active', isOneTwoPos);
+    };
+    oneTwoPosToggle.addEventListener('click', ()=>{ isOneTwoPos=!isOneTwoPos; setOneTwoPosUI(); calcMain(true); });
+    oneTwoPosToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isOneTwoPos=!isOneTwoPos; setOneTwoPosUI(); calcMain(true); }});
+    setOneTwoPosUI();
+
+    // Recalc on toggles
+    ddToggle.addEventListener('click', ()=>calcMain(true));
+    ddToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ calcMain(true); }});
+    smurfToggle.addEventListener('click', ()=>calcMain(true));
+    smurfToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ calcMain(true); }});
+    conductScoreInput.addEventListener('input', ()=>calcMain(true));
+
     // Toggle: Режим расчёта (MMR / Победы)
     const calcModeToggle = document.querySelector('#calcModeToggle .switch');
     let isWinsMode = false;
@@ -713,7 +821,8 @@
       calcModeToggle.querySelector('.mmr').classList.toggle('active', !isWinsMode);
       calcModeToggle.querySelector('.wins').classList.toggle('active', isWinsMode);
       winsBlock.style.display = isWinsMode ? 'block' : 'none';
-      mmrToEl.parentElement.style.display = isWinsMode ? 'none' : '';
+      const mmrToWrap = document.getElementById('mmrToWrap');
+      if(mmrToWrap){ mmrToWrap.style.display = isWinsMode ? 'none' : ''; }
     };
     calcModeToggle.addEventListener('click', ()=>{ isWinsMode=!isWinsMode; setModeUI(); });
     calcModeToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); isWinsMode=!isWinsMode; setModeUI(); }});
@@ -732,6 +841,8 @@
         isDD: false,
         isWinsMode: false,
         smurf: false,
+        oneTwoPos: false,
+        conductScore: 0,
         markupPercent: 0
       };
     }
@@ -800,6 +911,8 @@
       mmrToEl.value = c.mmrTo || '';
       winsCountEl.value = c.winsCount || '';
       isSmurf = !!c.smurf; setSmurfUI();
+      isOneTwoPos = !!c.oneTwoPos; setOneTwoPosUI();
+      conductScoreInput.value = c.conductScore || '';
       markupPercentEl.value = (c.markupPercent ?? 0) || '';
 
       isParty = !!c.isParty; setBoostToggleUI();
@@ -814,7 +927,9 @@
       c.mmrTo = clamp(Number(mmrToEl.value||0), 0, 11000);
       c.winsCount = clamp(Number(winsCountEl.value||0), 0, 10000);
       c.smurf = !!isSmurf;
-      c.markupPercent = clamp(Number(markupPercentEl.value||0), 0, 10000);
+      c.oneTwoPos = !!isOneTwoPos;
+      c.conductScore = clamp(Number(conductScoreInput.value||0), 0, 11000);
+      c.markupPercent = clamp(Number(markupPercentEl.value||0), 0, 100000000);
       c.isParty = !!isParty;
       c.isDD = !!isDD;
       c.isWinsMode = !!isWinsMode;
@@ -829,7 +944,7 @@
 
       if(c.isWinsMode){
         winsInput = clamp(Number(c.winsCount||0), 1, 10000);
-        const mmrPerWin = c.isDD ? 50 : 25;
+        const mmrPerWin = c.isDD ? 50 : 25; // 50 MMR/вин при ДД, иначе 25
         const projectedTo = from + winsInput * mmrPerWin;
         to = clamp(projectedTo, 1, 11000);
       }
@@ -839,50 +954,83 @@
       }
 
       if(c.isParty){
-        const rate = getRateFromRanges(pricesConfig.partyPerWin, from);
+        const mmrPerWin = c.isDD ? 50 : 25; // 50 MMR/вин при ДД, иначе 25
         let base = 0;
+        let seg;
         if(c.isWinsMode){
-          base = rate * winsInput;
-          descriptionLines.push(`Пати: ${winsInput} вин × ${fmt(rate)} ₽/вин = ${fmt(base)} ₽.`);
+          // Симуляция по играм как у конкурента: после каждого буста добавляем MMR,
+          // берём ставку по текущему MMR и суммируем.
+          let currentMMR = from;
+          base = 0;
+          for(let i=0;i<winsInput;i++){
+            currentMMR += mmrPerWin;
+            const rate = getRateFromRanges(pricesConfig.partyPerWin, currentMMR);
+            base += rate;
+          }
+          descriptionLines.push(`Пати: ${winsInput} вин (шаг ${mmrPerWin} MMR), ставка по текущему MMR.`);
+          seg = { parts: [] };
         } else {
-          const mmrPerWin = c.isDD ? 50 : 25;
-          const approxWins = Math.ceil((to - from) / mmrPerWin);
-          base = rate * approxWins;
-          descriptionLines.push(`Пати: ~${approxWins} вин × ${fmt(rate)} ₽/вин (≈ ${mmrPerWin} MMR/вин) = ${fmt(base)} ₽.`);
+          seg = segmentSum(from, to, pricesConfig.partyPerWin, mmrPerWin);
+          base = seg.sum;
+          descriptionLines.push(`Пати: от ${from} до ${to} MMR по диапазонам (≈ ${mmrPerWin} MMR/вин).`);
         }
-        const smurfExtra = c.smurf ? base * (pricesConfig.smurfPoolPercent/100) : 0;
-        const subtotal = base + smurfExtra;
-        const markupExtra = subtotal * (Number(c.markupPercent||0)/100);
-        const total = Math.round(subtotal + markupExtra);
-        if(smurfExtra>0) descriptionLines.push(`Смурф-пулл: +${pricesConfig.smurfPoolPercent}% = +${fmt(Math.round(smurfExtra))} ₽`);
-        if(markupExtra>0) descriptionLines.push(`Наценка: +${(Number(c.markupPercent)||0)}% = +${fmt(Math.round(markupExtra))} ₽`);
-        return { ok:true, total, subtotal:Math.round(subtotal), ddExtra:0, smurfExtra:Math.round(smurfExtra), markupExtra:Math.round(markupExtra), parts:[], lines:descriptionLines };
+        // Детализация по диапазонам
+        seg.parts.forEach(p=>{
+          const winsInRange = p.delta / mmrPerWin;
+          const winsText = Number.isInteger(winsInRange) ? `${winsInRange}` : `≈${winsInRange.toFixed(2)}`;
+          descriptionLines.push(`${winsText} вин в диапазоне ${p.range} × ${fmt(p.rate)} ₽/вин = ${fmt(p.cost)} ₽`);
+        });
+        // ДД множитель для Пати
+        const ddMul = c.isDD ? ((from <= pricesConfig.ddSplitThreshold) ? 1.5 : 1.3) : 1.0;
+        let running = base * ddMul;
+        if(c.isDD) descriptionLines.push(`ДД множитель (Пати): ×${ddMul.toFixed(2)}`);
+
+        // Смурф-пулл только от 3500 MMR
+        const smurfAllowed = c.smurf && from >= 3500;
+        const smurfExtra = smurfAllowed ? running * (pricesConfig.smurfPoolPercent/100) : 0;
+        running += smurfExtra;
+
+        // 1–2 позиции: до 6000 +20%, от 6000 +50%
+        if(c.oneTwoPos){
+          const posMul = from < 6000 ? 1.20 : 1.50;
+          running *= posMul;
+          descriptionLines.push(`1–2 позиции: ×${posMul.toFixed(2)}`);
+        }
+
+        const subtotal = running;
+        const markupExtra = Number(c.markupPercent||0);
+        const total = subtotal + markupExtra;
+        if(smurfExtra>0) descriptionLines.push(`Смурф-пулл (от 3500): +${pricesConfig.smurfPoolPercent}% = +${fmt(smurfExtra)} ₽`);
+        if(markupExtra>0) descriptionLines.push(`Профит: +${fmt(markupExtra)} ₽`);
+        return { ok:true, total, subtotal:subtotal, ddExtra:(base*ddMul - base), smurfExtra:smurfExtra, markupExtra:markupExtra, parts:seg.parts, lines:descriptionLines };
       }
 
       // Соло
       const res = segmentSum(from, to, pricesConfig.mmrSoloRubPer100, 100);
       let baseSum = res.sum; parts = res.parts;
-
-      // DD только на часть выше порога
+      // DD множитель для Соло
       let ddExtraCalc = 0;
+      let baseAfterDDSolo = baseSum;
       if(c.isDD){
-        if(pricesConfig.ddMode === 'percent'){
-          const th = pricesConfig.ddThreshold;
-          if(to > Math.max(th, from)){
-            const fromDD = Math.max(from, th);
-            const {sum: ddSum} = segmentSum(fromDD, to, pricesConfig.mmrSoloRubPer100, 100);
-            ddExtraCalc = ddSum * (pricesConfig.ddValue/100);
-          }
-        } else if(pricesConfig.ddMode === 'fixed'){
-          ddExtraCalc = pricesConfig.ddValue;
-        }
+        const ddMulSolo = 0.75;
+        baseAfterDDSolo = baseSum * ddMulSolo;
+        ddExtraCalc = baseAfterDDSolo - baseSum; // отрицательная «надбавка» (скидка)
       }
 
-      // Смурф-пулл на сумму после DD
-      const smurfExtraCalc = c.smurf ? (baseSum + ddExtraCalc) * (pricesConfig.smurfPoolPercent/100) : 0;
-      const subtotalCalc = baseSum + ddExtraCalc + smurfExtraCalc;
-      const markupExtraCalc = subtotalCalc * (Number(c.markupPercent||0)/100);
-      const totalCalc = Math.round(subtotalCalc + markupExtraCalc);
+      // Смурф-пулл только от 3500
+      const smurfExtraCalc = (c.smurf && from >= 3500) ? (baseAfterDDSolo) * (pricesConfig.smurfPoolPercent/100) : 0;
+      let runningSolo = baseAfterDDSolo + smurfExtraCalc;
+
+      // 1–2 позиции для соло
+      if(c.oneTwoPos){
+        const posMulSolo = from < 6000 ? 1.20 : 1.50;
+        runningSolo *= posMulSolo;
+        descriptionLines.push(`1–2 позиции: ×${posMulSolo.toFixed(2)}`);
+      }
+
+      const subtotalCalc = runningSolo;
+      const markupExtraCalc = Number(c.markupPercent||0);
+      const totalCalc = subtotalCalc + markupExtraCalc;
 
       if(c.isWinsMode){
         const mmrPerWin = c.isDD ? 50 : 25;
@@ -890,40 +1038,40 @@
         descriptionLines.push(`По победам: ${winsInput} × ${mmrPerWin} MMR = ${fmt(gained)} MMR`);
       }
       parts.forEach(p=>{
-        descriptionLines.push(`${p.delta} MMR в диапазоне ${p.range} × ${fmt(p.rate)} ₽/100 = ${fmt(Math.round(p.cost))} ₽`);
+        descriptionLines.push(`${p.delta} MMR в диапазоне ${p.range} × ${fmt(p.rate)} ₽/100 = ${fmt(p.cost)} ₽`);
       });
-      if(c.isDD && ddExtraCalc>0){
-        if(pricesConfig.ddMode==='percent'){
-          descriptionLines.push(`ДД: +${pricesConfig.ddValue}% на часть выше ${pricesConfig.ddThreshold}: +${fmt(Math.round(ddExtraCalc))} ₽`);
-        } else {
-          descriptionLines.push(`ДД: фикс +${fmt(Math.round(ddExtraCalc))} ₽`);
-        }
-      }
-      if(smurfExtraCalc>0){
-        descriptionLines.push(`Смурф-пулл: +${pricesConfig.smurfPoolPercent}% = +${fmt(Math.round(smurfExtraCalc))} ₽`);
-      }
-      if(markupExtraCalc>0){
-        descriptionLines.push(`Наценка: +${(Number(c.markupPercent)||0)}% = +${fmt(Math.round(markupExtraCalc))} ₽`);
-      }
-      return { ok:true, total: totalCalc, subtotal: Math.round(subtotalCalc), ddExtra: Math.round(ddExtraCalc), smurfExtra: Math.round(smurfExtraCalc), markupExtra: Math.round(markupExtraCalc), parts, lines: descriptionLines };
+      if(c.isDD){ descriptionLines.push(`ДД множитель (Соло): ×0.75`); }
+      if(smurfExtraCalc>0){ descriptionLines.push(`Смурф-пулл (от 3500): +${pricesConfig.smurfPoolPercent}% = +${fmt(smurfExtraCalc)} ₽`); }
+      if(markupExtraCalc>0){ descriptionLines.push(`Профит: +${fmt(markupExtraCalc)} ₽`); }
+      return { ok:true, total: totalCalc, subtotal: subtotalCalc, ddExtra: ddExtraCalc, smurfExtra: smurfExtraCalc, markupExtra: markupExtraCalc, parts, lines: descriptionLines };
     }
 
     function recalcGrand(){
       // Суммируем итог после наценки по всем клиентам
       let sumAll = 0;
+      let activeTotal = 0;
       clients.forEach(c=>{
         const r = computeClient(c);
-        if(r.ok){ sumAll += r.total; }
+        if(r.ok){
+          sumAll += r.total;
+          if(c===clients[activeClientIndex]) activeTotal = r.total;
+        }
       });
       if(sumAll<=0){
         grandTotalEl.textContent = '— ₽';
-        feesBlockEl.textContent = `11% за лот: — ₽ • 3% вывод: — ₽`;
+        fpPriceLineEl.textContent = '—';
         return;
       }
-      grandTotalEl.textContent = `${fmt(Math.round(sumAll))} ₽`;
-      const lotFee = Math.round(sumAll * (pricesConfig.fpFeesLotPercent/100));
-      const withdrawFee = Math.round(sumAll * (pricesConfig.fpWithdrawPercent/100));
-      feesBlockEl.textContent = `${pricesConfig.fpFeesLotPercent}% за лот: ${fmt(lotFee)} ₽ • ${pricesConfig.fpWithdrawPercent}% вывод: ${fmt(withdrawFee)} ₽`;
+      const sumAllC = ceil2(sumAll);
+      grandTotalEl.textContent = `${fmt(sumAllC)} ₽`;
+      const lotFee = ceil2(sumAll * (pricesConfig.fpFeesLotPercent/100));
+      const withdrawFee = ceil2(sumAll * (pricesConfig.fpWithdrawPercent/100));
+
+      // FunPay 14%
+      const fpMul = 1 + (pricesConfig.fpFeesLotPercent + pricesConfig.fpWithdrawPercent)/100; // 1.14
+      const fpActive = ceil2(activeTotal * fpMul);
+      const fpAll = ceil2(sumAll * fpMul);
+      fpPriceLineEl.textContent = `Активный: ${fmt(fpActive)} ₽ | Все клиенты: ${fmt(fpAll)} ₽`;
     }
 
     function calcMain(isSilent){
@@ -934,7 +1082,7 @@
         totalEl.textContent='— ₽';
         breakdownEl.textContent='Заполните корректные значения и попробуйте снова.';
       } else {
-        totalEl.textContent = `${fmt(r.total)} ₽`;
+        totalEl.textContent = `${fmt(ceil2(r.total))} ₽`;
         breakdownEl.textContent = r.lines.join(' • ');
       }
       recalcGrand();
@@ -1204,11 +1352,30 @@
     // ==========================
     // Battle Cup calc
     // ==========================
-    const battleTier = document.getElementById('battleTier');
+    // Fancy select for Battle tier
+    const battleTierDisplay = document.getElementById('battleTierDisplay');
+    const battleTierMenu = document.getElementById('battleTierMenu');
+    let battleTierValue = '3';
+    battleTierDisplay.addEventListener('click', ()=>{
+      battleTierMenu.classList.toggle('open');
+    });
+    battleTierMenu.querySelectorAll('.fs-option').forEach(opt=>{
+      opt.addEventListener('click', ()=>{
+        battleTierValue = opt.dataset.value;
+        battleTierDisplay.textContent = opt.textContent;
+        battleTierMenu.classList.remove('open');
+        battleBtn.click();
+      });
+    });
+    document.addEventListener('click', (e)=>{
+      if(!document.getElementById('battleTierFS').contains(e.target)){
+        battleTierMenu.classList.remove('open');
+      }
+    });
     const battleBtn  = document.getElementById('battleCalc');
     const battleTotal= document.getElementById('battleTotal');
     battleBtn.addEventListener('click', ()=>{
-      const t = battleTier.value;
+      const t = battleTierValue;
       battleTotal.textContent = `${fmt(pricesConfig.battleCup[t]||0)} ₽`;
     });
 
@@ -1247,9 +1414,9 @@
 
       const {sum, parts} = segmentSumConduct(f, t, pricesConfig.conductPer1000);
       const mul = condAccHigh.checked ? pricesConfig.conductAccHighMultiplier : 1;
-      const final = Math.round(sum * mul);
+      const final = sum * mul;
       condTotal.textContent = `${fmt(final)} ₽`;
-      const lines = parts.map(p=>`${p.delta} пунктов в ${p.range} × ${fmt(p.rate)} ₽/1000 = ${fmt(Math.round(p.cost))} ₽`);
+      const lines = parts.map(p=>`${p.delta} пунктов в ${p.range} × ${fmt(p.rate)} ₽/1000 = ${fmt(p.cost)} ₽`);
       if(mul>1) lines.push(`Множитель 7500+ MMR: ×${mul.toFixed(2)}`);
       condHint.textContent = lines.join(' • ');
     });
